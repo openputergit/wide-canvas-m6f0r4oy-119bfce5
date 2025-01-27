@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Study Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .timer {
+            font-family: monospace;
+            font-size: 1.5rem;
+        }
+        .question-preview {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Modal -->
+    <div id="modal" class="modal fixed inset-0 hidden z-50 flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div id="modalContent">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Rest of your existing code... -->
+
+    <script>
+        // Simulated Database
+        let questions = {
+            java: [
+                { id: 1, question: "What is Java?", answer: "Java is a high-level programming language...", difficulty: "easy" },
+                // Add more questions
+            ],
+            python: [
+                { id: 1, question: "What is Python?", answer: "Python is an interpreted programming language...", difficulty: "easy" },
+                // Add more questions
+            ]
+        };
+
+        let users = [
+            { email: "admin@example.com", type: "admin", password: "admin123" },
+            { email: "student@example.com", type: "student", password: "student123" }
+        ];
+
+        let examSession = {
+            questions: [],
+            currentQuestionIndex: 0,
+            timeRemaining: 0,
+            timer: null
+        };
+
+        // Modal Functions
+        function showModal(content) {
+            document.getElementById('modalContent').innerHTML = content;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function hideModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        // Admin Functions
+        function addQuestion() {
+            const subject = document.getElementById('subjectSelect').value;
+            const modalContent = `
+                <h2 class="text-2xl font-bold mb-4">Add New Question</h2>
+                <form onsubmit="handleAddQuestion(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Subject</label>
+                        <select name="subject" class="w-full p-2 border rounded" required>
+                            <option value="java">Java Programming</option>
+                            <option value="python">Python</option>
+                            <option value="dbms">DBMS</option>
+                            <option value="os">Operating Systems</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Question</label>
+                        <textarea name="question" class="w-full p-2 border rounded" rows="3" required></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Answer</label>
+                        <textarea name="answer" class="w-full p-2 border rounded" rows="3" required></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Difficulty</label>
+                        <select name="difficulty" class="w-full p-2 border rounded" required>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" onclick="hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded">Add Question</button>
+                    </div>
+                </form>
+            `;
+            showModal(modalContent);
+        }
+
+        function handleAddQuestion(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const subject = formData.get('subject');
+            
+            if (!questions[subject]) {
+                questions[subject] = [];
+            }
+
+            questions[subject].push({
+                id: questions[subject].length + 1,
+                question: formData.get('question'),
+                answer: formData.get('answer'),
+                difficulty: formData.get('difficulty')
+            });
+
+            hideModal();
+            alert('Question added successfully!');
+        }
+
+        // Exam Functions
+        function startExam() {
+            const subject = document.getElementById('subjectSelect').value;
+            if (!subject) {
+                alert('Please select a subject first');
+                return;
+            }
+
+            // Select 35 random questions
+            examSession.questions = [...questions[subject]]
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 35);
+            examSession.currentQuestionIndex = 0;
+            examSession.timeRemaining = 690; // 11.5 minutes in seconds
+
+            showExamQuestion();
+        }
+
+        function showExamQuestion() {
+            const question = examSession.questions[examSession.currentQuestionIndex];
+            const modalContent = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold">Question ${examSession.currentQuestionIndex + 1}/35</h2>
+                        <div class="timer">${formatTime(examSession.timeRemaining)}</div>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded">
+                        <p>${question.question}</p>
+                    </div>
+                    <textarea class="w-full p-2 border rounded" rows="4" placeholder="Type your answer here..."></textarea>
+                    <div class="flex justify-end space-x-2">
+                        <button onclick="submitAnswer()" class="px-4 py-2 bg-blue-500 text-white rounded">
+                            Submit Answer
+                        </button>
+                    </div>
+                </div>
+            `;
+            showModal(modalContent);
+            startTimer();
+        }
+
+        function startTimer() {
+            if (examSession.timer) {
+                clearInterval(examSession.timer);
+            }
+            
+            examSession.timer = setInterval(() => {
+                examSession.timeRemaining--;
+                const timerEl = document.querySelector('.timer');
+                if (timerEl) {
+                    timerEl.textContent = formatTime(examSession.timeRemaining);
+                }
+                
+                if (examSession.timeRemaining <= 0) {
+                    submitAnswer();
+                }
+            }, 1000);
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function submitAnswer() {
+            clearInterval(examSession.timer);
+            examSession.currentQuestionIndex++;
+            
+            if (examSession.currentQuestionIndex >= examSession.questions.length) {
+                alert('Exam completed!');
+                hideModal();
+                return;
+            }
+
+            examSession.timeRemaining = 690;
+            showExamQuestion();
+        }
+
+        // Event Listeners
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') {
+                hideModal();
+            }
+        });
+
+        // Initialize your existing code here...
+        switchLoginType('student');
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
